@@ -6,3 +6,5 @@ accelerate>=1.2
 safetensors>=0.5
 Pillow>=10
 huggingface_hub>=0.30
+# FCA-Vision-Lite default face specialist
+opencv-python-headless>=4.10
