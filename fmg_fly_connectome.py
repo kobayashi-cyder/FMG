@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
-CONNECTOME_VERSION = "FMG-FLY-CONNECTOME-2.0"
+CONNECTOME_VERSION = "FMG-FLY-CONNECTOME-2.1"
 
 
 @dataclass(frozen=True)
@@ -127,17 +127,14 @@ class FlyConnectomeRouter:
         for token in prompt.split():
             vec[self._hash_index("w:" + token)] += 1.2
 
-        width = max(1, int(request.get("width", 768)))
-        height = max(1, int(request.get("height", 768)))
-        steps = max(1, int(request.get("steps", 28)))
+        # Resolution is fixed at 1024x1024 by the image organ, so shape and
+        # pixel-count channels are deliberately omitted.
+        steps = max(1, int(request.get("steps", 50)))
         guidance = float(request.get("guidance", 9.0))
-        shape_tokens = [
-            f"ratio:{'wide' if width > height else 'tall' if height > width else 'square'}",
-            f"pixels:{min(7, (width * height) // (256 * 256))}",
+        for token in (
             f"steps:{min(7, steps // 8)}",
             f"guidance:{min(7, int(guidance // 2))}",
-        ]
-        for token in shape_tokens:
+        ):
             vec[self._hash_index("ctl:" + token)] += 2.0
 
         norm = math.sqrt(sum(v * v for v in vec)) or 1.0
