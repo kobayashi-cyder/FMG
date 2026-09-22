@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import io
 import os
 import random
 import threading
@@ -15,15 +16,17 @@ from pathlib import Path
 from typing import Any
 
 from fmg_fly_connectome import FlyConnectomeRouter, RouteDecision
+from fmg_quality_reflex import LightweightImageEvaluator
 
 
-VERSION = "FMG-IMG-CONNECTOME-2.1"
+VERSION = "FMG-IMG-CONNECTOME-2.2"
 DEFAULT_MODEL = "segmind/SSD-1B"
 DEFAULT_A1111 = "http://127.0.0.1:7860"
 IMAGE_WIDTH = 1024
 IMAGE_HEIGHT = 1024
 DEFAULT_STEPS = 50
 DEFAULT_GUIDANCE = 9.0
+QUALITY_REPAIR_THRESHOLD = 0.52
 DEFAULT_NEGATIVE = (
     "low quality, blurry, distorted, deformed anatomy, extra fingers, "
     "extra limbs, duplicate subject, watermark, signature, logo, text overlay"
@@ -233,6 +236,74 @@ class A1111Backend:
                 time.perf_counter() - started,
                 3,
             ),
+        }
+
+
+    def repair_masked(
+        self,
+        req: ImageRequest,
+        source_path: Path,
+        mask_image,
+        output_dir: Path,
+    ) -> dict[str, Any]:
+        """Repair white-mask regions through A1111/Forge img2img."""
+        source_b64 = base64.b64encode(source_path.read_bytes()).decode("ascii")
+        mask_buffer = io.BytesIO()
+        mask_image.save(mask_buffer, format="PNG")
+        mask_b64 = base64.b64encode(mask_buffer.getvalue()).decode("ascii")
+
+        payload = {
+            "init_images": [source_b64],
+            "mask": mask_b64,
+            "prompt": (
+                req.prompt
+                + ", refined local details, coherent anatomy, clean edges, "
+                  "natural texture, preserve composition"
+            ),
+            "negative_prompt": req.negative_prompt,
+            "width": IMAGE_WIDTH,
+            "height": IMAGE_HEIGHT,
+            "steps": req.steps,
+            "cfg_scale": req.guidance,
+            "seed": -1,
+            "denoising_strength": 0.28,
+            "mask_blur": 18,
+            "inpainting_fill": 1,
+            "inpaint_full_res": True,
+            "inpaint_full_res_padding": 64,
+            "batch_size": 1,
+            "n_iter": 1,
+        }
+        started = time.perf_counter()
+        value = self._json(
+            "/sdapi/v1/img2img",
+            method="POST",
+            payload=payload,
+            timeout=600,
+        )
+        images = value.get("images") if isinstance(value, dict) else None
+        if not images:
+            raise BackendError("A1111 repair returned no image")
+
+        raw = base64.b64decode(str(images[0]).split(",", 1)[-1], validate=False)
+        if not (
+            raw.startswith(b"\\x89PNG\\r\\n\\x1a\\n")
+            or raw.startswith(b"\\xff\\xd8")
+        ):
+            raise BackendError("A1111 repair returned unsupported image payload")
+
+        ext = ".png" if raw.startswith(b"\\x89PNG") else ".jpg"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        name = f"fmg_repair_{int(time.time()*1000)}{ext}"
+        path = output_dir / name
+        path.write_bytes(raw)
+        return {
+            "ok": True,
+            "backend": "a1111",
+            "operation": "masked_repair",
+            "path": str(path),
+            "name": name,
+            "elapsed_s": round(time.perf_counter() - started, 3),
         }
 
 
@@ -470,6 +541,10 @@ class FMGImageGenerator:
         self.connectome = FlyConnectomeRouter(
             state_path
         )
+        self.evaluator = LightweightImageEvaluator(
+            width=IMAGE_WIDTH,
+            height=IMAGE_HEIGHT,
+        )
         self._generation_lock = threading.Lock()
 
     def _availability(self) -> dict[str, bool]:
@@ -491,6 +566,16 @@ class FMGImageGenerator:
             "default_model": DEFAULT_MODEL,
             "resolution": {"width": IMAGE_WIDTH, "height": IMAGE_HEIGHT, "policy": "fixed"},
             "quality_defaults": {"steps": DEFAULT_STEPS, "guidance": DEFAULT_GUIDANCE},
+            "quality_reflex": {
+                "enabled": True,
+                "threshold": QUALITY_REPAIR_THRESHOLD,
+                "motor_outputs": [
+                    "MBON::evaluate",
+                    "MBON::repair",
+                    "MBON::accept",
+                ],
+                "semantic_vision_model": False,
+            },
             "output_dir": str(self.output_dir),
             "backends": {
                 "a1111": self.a1111.probe(),
@@ -562,6 +647,69 @@ class FMGImageGenerator:
             ),
             retry_order=(backend,),
         )
+
+    def _quality_reflex(
+        self,
+        req: ImageRequest,
+        result: dict[str, Any],
+        availability: dict[str, bool],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        before = self.evaluator.evaluate(result["path"])
+        trace: dict[str, Any] = {
+            "evaluate_mbon": "MBON::evaluate",
+            "before": before.as_dict(),
+            "repair_threshold": QUALITY_REPAIR_THRESHOLD,
+            "repair_attempted": False,
+            "repair_applied": False,
+            "decision_mbon": "MBON::accept",
+        }
+
+        should_repair = (
+            before.score < QUALITY_REPAIR_THRESHOLD
+            and bool(before.weak_regions)
+            and bool(availability.get("a1111"))
+        )
+        if not should_repair:
+            if before.score < QUALITY_REPAIR_THRESHOLD and not availability.get("a1111"):
+                trace["repair_skipped_reason"] = "A1111/Forge repair organ unavailable"
+            elif before.score < QUALITY_REPAIR_THRESHOLD and not before.weak_regions:
+                trace["repair_skipped_reason"] = "no conservative local repair region found"
+            else:
+                trace["repair_skipped_reason"] = "quality threshold satisfied"
+            return result, trace
+
+        trace["repair_attempted"] = True
+        trace["decision_mbon"] = "MBON::repair"
+        mask = self.evaluator.build_mask(before)
+
+        try:
+            repaired = self.a1111.repair_masked(
+                req,
+                Path(result["path"]),
+                mask,
+                self.output_dir,
+            )
+            after = self.evaluator.evaluate(repaired["path"])
+            trace["after"] = after.as_dict()
+            trace["repair_gain"] = round(after.score - before.score, 4)
+
+            if after.score >= before.score + 0.015 and after.resolution_ok:
+                trace["repair_applied"] = True
+                repaired["seed"] = result.get("seed")
+                repaired["source_artifact"] = result.get("name")
+                return repaired, trace
+
+            try:
+                Path(repaired["path"]).unlink(missing_ok=True)
+            except Exception:
+                pass
+            trace["decision_mbon"] = "MBON::accept"
+            trace["repair_rejected_reason"] = "repair did not improve technical score"
+            return result, trace
+        except Exception as exc:
+            trace["decision_mbon"] = "MBON::accept"
+            trace["repair_error"] = str(exc)
+            return result, trace
 
     def generate(
         self,
@@ -638,6 +786,11 @@ class FMGImageGenerator:
                             "structural verification"
                         )
 
+                    result, quality_trace = self._quality_reflex(
+                        req,
+                        result,
+                        availability,
+                    )
                     result["request"] = asdict(req)
                     result["artifact_url"] = (
                         "/artifacts/"
@@ -652,6 +805,7 @@ class FMGImageGenerator:
                     result["connectome_route"] = (
                         decision.as_dict()
                     )
+                    result["quality_reflex"] = quality_trace
                     result["attempts"] = attempted
                     return result
                 except Exception as exc:
@@ -721,8 +875,8 @@ img{max-width:100%;border-radius:10px;margin-top:12px}
 </style>
 </head>
 <body>
-<h1>FMG Image Generator — Fly Connectome V2</h1>
-<p>1024×1024 fixed · PN → sparse KC → MBON → lazy image organ → DAN reward</p>
+<h1>FMG Image Generator — Fly Connectome V2.2</h1>
+<p>1024×1024 fixed · generate → evaluate → masked repair → accept</p>
 <textarea id="prompt" placeholder="画像生成プロンプト"></textarea>
 <p><label>Backend
 <select id="backend">
