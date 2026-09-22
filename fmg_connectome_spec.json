@@ -1,5 +1,5 @@
 {
-  "schema": "fmg.fly-connectome-spec.v2.2",
+  "schema": "fmg.fly-connectome-spec.v2.4",
   "name": "FMG Fly Connectome Image Controller 1024",
   "biological_fidelity": "connectome-inspired engineering abstraction",
   "flow": [
@@ -50,5 +50,14 @@
       "accept_only_if_improved": true
     },
     "semantic_vision_model": false
+  },
+  "fca_vision_lite": {
+    "bootstrap": {
+      "trials": 2000000,
+      "mode": "synthetic_behavioral_rehearsal",
+      "state": "data/fca_vision_bootstrap_v24.json",
+      "report": "data/fca_vision_training_report_v24.json",
+      "seed": 2401
+    }
   }
 }
