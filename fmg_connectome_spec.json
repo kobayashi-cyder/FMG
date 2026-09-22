@@ -1,0 +1,31 @@
+{
+  "schema": "fmg.fly-connectome-spec.v2",
+  "name": "FMG Fly Connectome Image Controller",
+  "biological_fidelity": "connectome-inspired engineering abstraction",
+  "flow": [
+    "sensory_request",
+    "PN_like_channels",
+    "KC_like_sparse_expansion",
+    "MBON_competition",
+    "lazy_image_organ",
+    "artifact_verifier",
+    "DAN_like_reward",
+    "KC_to_MBON_plasticity"
+  ],
+  "topology": {
+    "pn_count": 64,
+    "kc_count": 1024,
+    "kc_fan_in": 6,
+    "kc_target_sparsity": 0.05,
+    "mbon_outputs": [
+      "a1111",
+      "diffusers"
+    ]
+  },
+  "constraints": {
+    "qwen": false,
+    "cloud_api_required": false,
+    "offline_after_model_prepare": true,
+    "large_central_planner": false
+  }
+}
