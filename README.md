@@ -1,6 +1,6 @@
 # FMG — Fly Media Generator
 
-Current image core: **FMG Image Generator Connectome V2.2**
+Current image core: **FMG Image Generator Connectome V2.3**
 
 ## Production profile
 
@@ -105,3 +105,40 @@ prompt alignment.
 Repair is conservative: up to three weak local regions, blurred masks,
 denoising strength 0.28, and automatic rejection when the repaired image does
 not improve the technical quality score.
+
+
+## V2.3 — FCA-Vision-Lite
+
+FMG now uses a reduced FCA as its post-generation visual decision controller.
+
+Kept from FCA:
+- 128 sensory channels
+- 256 KC-like units
+- top-16 competition
+- fan-in 6
+- temporal trace
+- MBON action competition
+- reward-prediction-error learning
+- lazy specialist organs
+- fail-closed evidence handling
+
+Removed for FMG:
+- conversation
+- general world model
+- repository tooling
+- general autonomy loop
+- unrelated memory/retrieval and skill machinery
+
+FCA-Vision-Lite selects one of three actions:
+
+```text
+accept
+local_repair
+global_repair
+```
+
+Optional lazy specialists are face (OpenCV), hand (MediaPipe), and text
+(Tesseract). If a specialist is unavailable, it does not create negative
+evidence; the controller falls back to the technical quality evaluator.
+
+The default launch scripts now start `fmg_image_generator_v23.py`.
