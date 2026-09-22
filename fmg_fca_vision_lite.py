@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
-VERSION = "FMG-FCA-VISION-LITE-2.3"
+VERSION = "FMG-FCA-VISION-LITE-2.4"
 ACTIONS = ("accept", "local_repair", "global_repair")
 
 
@@ -151,6 +151,7 @@ class MBONPolicy:
         self.weights: dict[str, dict[int, float]] = {a: {} for a in ACTIONS}
         self.baseline = 0.0
         self.events = 0
+        self.bootstrap_path = Path(bootstrap_path) if bootstrap_path else None
         self._load()
 
     def learned_scores(self, pattern: SparsePattern) -> dict[str, float]:
@@ -178,7 +179,7 @@ class MBONPolicy:
 
     def _save(self) -> None:
         payload = {
-            "schema": "fmg.fca-vision-lite.v2.3",
+            "schema": "fmg.fca-vision-lite.v2.4",
             "baseline": self.baseline,
             "events": self.events,
             "weights": {
@@ -202,11 +203,15 @@ class MBONPolicy:
                 os.unlink(tmp)
 
     def _load(self) -> None:
-        if not self.state_path.is_file():
+        source = self.state_path if self.state_path.is_file() else self.bootstrap_path
+        if source is None or not source.is_file():
             return
         try:
-            raw = json.loads(self.state_path.read_text(encoding="utf-8"))
-            if raw.get("schema") != "fmg.fca-vision-lite.v2.3":
+            raw = json.loads(source.read_text(encoding="utf-8"))
+            if raw.get("schema") not in {
+                "fmg.fca-vision-lite.v2.3",
+                "fmg.fca-vision-lite.v2.4",
+            }:
                 return
             self.baseline = float(raw.get("baseline", 0.0))
             self.events = int(raw.get("events", 0))
@@ -377,7 +382,11 @@ class FCAVisionLite:
         self.sensory = SensoryHash(128)
         self.kc = KenyonLayer()
         self.trace = TemporalTrace()
-        self.policy = MBONPolicy(state_path)
+        bootstrap = Path(__file__).resolve().parent / "data" / "fca_vision_bootstrap_v24.json"
+        self.policy = MBONPolicy(
+            state_path,
+            bootstrap_path=bootstrap,
+        )
         self.organs = LazyOrganRegistry()
         self.organs.register("face", FaceOrgan)
         self.organs.register("hand", HandOrgan)
