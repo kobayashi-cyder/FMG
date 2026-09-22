@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+runtime/
+models/
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.bin
+.DS_Store
