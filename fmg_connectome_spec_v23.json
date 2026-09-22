@@ -1,0 +1,39 @@
+{
+  "schema": "fmg.fly-connectome-spec.v2.3",
+  "image_profile": {
+    "width": 1024,
+    "height": 1024,
+    "fixed": true,
+    "default_steps": 50,
+    "default_guidance": 9
+  },
+  "generation_controller": {
+    "pn_channels": 64,
+    "kc_units": 1024,
+    "fan_in": 6,
+    "target_sparsity": 0.05,
+    "outputs": [
+      "a1111",
+      "diffusers"
+    ]
+  },
+  "fca_vision_lite": {
+    "sensory_channels": 128,
+    "kc_units": 256,
+    "kc_winners": 16,
+    "fan_in": 6,
+    "temporal_trace": true,
+    "rpe_learning": true,
+    "lazy_organs": [
+      "face",
+      "hand",
+      "text"
+    ],
+    "actions": [
+      "accept",
+      "local_repair",
+      "global_repair"
+    ],
+    "fail_closed": true
+  }
+}
