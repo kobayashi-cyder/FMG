@@ -1,0 +1,23 @@
+{
+  "schema": "fmg.fca-vision-training-report.v2.4",
+  "trials": 2000000,
+  "seed": 2401,
+  "distinct_train_patterns": 1607,
+  "distinct_holdout_patterns": 353,
+  "online_training_accuracy": 0.7702475,
+  "reward_mean": 0.540495,
+  "train_accuracy_before": 0.6826384567517113,
+  "holdout_accuracy_before": 0.6515580736543909,
+  "train_accuracy_after": 0.7647790914747977,
+  "holdout_accuracy_after": 0.71671388101983,
+  "holdout_confusion_before": [[119,62,2],[6,93,14],[3,36,18]],
+  "holdout_confusion_after": [[143,39,1],[7,90,16],[9,28,20]],
+  "actions": ["accept","local_repair","global_repair"],
+  "runtime_seconds": 9.875388466999993,
+  "notes": [
+    "These are synthetic FCA routing/reward trials, not 2,000,000 generated images.",
+    "The holdout set uses unseen combinations from the same discretized curriculum.",
+    "Real-image online reward learning remains enabled after bootstrap.",
+    "Q8 quantization preserves the measured holdout accuracy."
+  ]
+}
