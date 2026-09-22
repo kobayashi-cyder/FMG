@@ -9,19 +9,20 @@ import fmg_image_generator as m
 
 
 class RequestTests(unittest.TestCase):
-    def test_request_clamps_and_aligns(self):
+    def test_resolution_is_fixed_1024(self):
         r = m.ImageRequest.from_mapping({
             "prompt": "cat",
             "width": 777,
             "height": 1999,
-            "steps": 999,
-            "guidance": 999,
             "backend": "connectome",
         })
-        self.assertEqual(r.width % 8, 0)
-        self.assertEqual(r.height, 1536)
-        self.assertEqual(r.steps, 80)
-        self.assertEqual(r.guidance, 20.0)
+        self.assertEqual(r.width, 1024)
+        self.assertEqual(r.height, 1024)
+
+    def test_quality_defaults(self):
+        r = m.ImageRequest.from_mapping({"prompt": "cat"})
+        self.assertEqual(r.steps, 50)
+        self.assertEqual(r.guidance, 9.0)
 
     def test_prompt_required(self):
         with self.assertRaises(ValueError):
@@ -53,8 +54,8 @@ class A1111PayloadTests(unittest.TestCase):
             }
             req = m.ImageRequest(
                 prompt="test",
-                width=256,
-                height=256,
+                width=1024,
+                height=1024,
                 steps=2,
                 guidance=1.0,
                 seed=1,
