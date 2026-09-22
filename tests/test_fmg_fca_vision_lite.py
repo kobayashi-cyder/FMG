@@ -72,6 +72,11 @@ class FCAVisionLiteTests(unittest.TestCase):
             self.assertTrue(state.is_file())
             self.assertEqual(FCAVisionLite(state).policy.events, 1)
 
+    def test_bootstrap_policy_loads_two_million_events(self):
+        with tempfile.TemporaryDirectory() as td:
+            fca = FCAVisionLite(Path(td) / "missing_runtime_state.json")
+            self.assertEqual(fca.policy.events, 2_000_000)
+
 
 if __name__ == "__main__":
     unittest.main()
