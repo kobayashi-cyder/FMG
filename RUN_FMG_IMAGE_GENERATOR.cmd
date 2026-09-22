@@ -4,13 +4,13 @@ cd /d "%~dp0"
 
 where py >nul 2>&1
 if not errorlevel 1 (
-  py -3 fmg_image_generator.py
+  py -3 fmg_image_generator_v23.py
   exit /b %errorlevel%
 )
 
 where python >nul 2>&1
 if not errorlevel 1 (
-  python fmg_image_generator.py
+  python fmg_image_generator_v23.py
   exit /b %errorlevel%
 )
 
