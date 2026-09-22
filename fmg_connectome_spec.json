@@ -1,5 +1,5 @@
 {
-  "schema": "fmg.fly-connectome-spec.v2.1",
+  "schema": "fmg.fly-connectome-spec.v2.2",
   "name": "FMG Fly Connectome Image Controller 1024",
   "biological_fidelity": "connectome-inspired engineering abstraction",
   "flow": [
@@ -34,5 +34,21 @@
     "fixed": true,
     "default_steps": 50,
     "default_guidance": 9
+  },
+  "quality_reflex": {
+    "evaluator": "lightweight technical metrics",
+    "threshold": 0.52,
+    "motor_outputs": [
+      "evaluate",
+      "repair",
+      "accept"
+    ],
+    "repair": {
+      "backend": "A1111/Forge img2img mask",
+      "denoising_strength": 0.28,
+      "max_regions": 3,
+      "accept_only_if_improved": true
+    },
+    "semantic_vision_model": false
   }
 }
