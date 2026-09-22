@@ -1,6 +1,6 @@
 # FMG — Fly Media Generator
 
-Current image core: **FMG Image Generator Connectome V2.3**
+Current image core: **FMG Image Generator Connectome V2.4**
 
 ## Production profile
 
@@ -142,3 +142,19 @@ Optional lazy specialists are face (OpenCV), hand (MediaPipe), and text
 evidence; the controller falls back to the technical quality evaluator.
 
 The default launch scripts now start `fmg_image_generator_v23.py`.
+
+
+## V2.4 — 2,000,000 FCA-Vision-Lite rehearsal events
+
+A deterministic bootstrap policy is bundled in `data/fca_vision_bootstrap_v24.json`.
+
+These are **2,000,000 sequential FCA routing/reward updates**, not two million diffusion image generations.
+
+- distinct training patterns: 1,607
+- distinct holdout patterns: 353
+- holdout routing accuracy before: 65.16%
+- holdout routing accuracy after: 71.67%
+- online rehearsal accuracy: 77.02%
+- seed: 2401
+
+The bootstrap is loaded only when no local runtime state exists. Real generated images continue to update the runtime state after bootstrap.
