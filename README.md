@@ -1,6 +1,6 @@
 # FMG — Fly Media Generator
 
-Current image core: **FMG Image Generator Connectome V2.1**
+Current image core: **FMG Image Generator Connectome V2.2**
 
 ## Production profile
 
@@ -81,3 +81,27 @@ python -m unittest discover -s tests -v
 ```
 
 Model weights, runtime artifacts, caches, and generated images are excluded from Git.
+
+
+## V2.2 quality reflex
+
+FMG now runs a compact local quality loop after 1024×1024 generation:
+
+```text
+generate
+  -> MBON::evaluate
+  -> good enough -> MBON::accept
+  -> weak local region -> MBON::repair
+  -> A1111 / Forge masked img2img
+  -> re-evaluate
+  -> keep repair only when technical score improves
+```
+
+The evaluator stays lightweight: entropy, edge/detail energy, contrast,
+clipping, and exact 1024×1024 compliance. It does not load a second large
+vision model and does not claim semantic judgment of faces, hands, text, or
+prompt alignment.
+
+Repair is conservative: up to three weak local regions, blurred masks,
+denoising strength 0.28, and automatic rejection when the repaired image does
+not improve the technical quality score.
