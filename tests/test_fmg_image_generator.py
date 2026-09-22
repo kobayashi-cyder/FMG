@@ -16,8 +16,8 @@ class RequestTests(unittest.TestCase):
             "height": 1999,
             "backend": "connectome",
         })
-        self.assertEqual(r.width, 1024)
-        self.assertEqual(r.height, 1024)
+        self.assertFalse(hasattr(r, "width"))
+        self.assertFalse(hasattr(r, "height"))
 
     def test_quality_defaults(self):
         r = m.ImageRequest.from_mapping({"prompt": "cat"})
@@ -54,8 +54,6 @@ class A1111PayloadTests(unittest.TestCase):
             }
             req = m.ImageRequest(
                 prompt="test",
-                width=1024,
-                height=1024,
                 steps=2,
                 guidance=1.0,
                 seed=1,
