@@ -19,7 +19,11 @@ from fmg_fly_connectome import FlyConnectomeRouter, RouteDecision
 
 VERSION = "FMG-IMG-CONNECTOME-2.1"
 DEFAULT_MODEL = "segmind/SSD-1B"
-DEFAULT_A1111 = "http://127.0.0.1:7860"\nIMAGE_WIDTH = 1024\nIMAGE_HEIGHT = 1024\nDEFAULT_STEPS = 50\nDEFAULT_GUIDANCE = 9.0
+DEFAULT_A1111 = "http://127.0.0.1:7860"
+IMAGE_WIDTH = 1024
+IMAGE_HEIGHT = 1024
+DEFAULT_STEPS = 50
+DEFAULT_GUIDANCE = 9.0
 DEFAULT_NEGATIVE = (
     "low quality, blurry, distorted, deformed anatomy, extra fingers, "
     "extra limbs, duplicate subject, watermark, signature, logo, text overlay"
@@ -33,18 +37,13 @@ def _env_bool(name: str, default: bool = False) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _multiple_of_8(value: int) -> int:
-    return max(256, min(1536, int(value) // 8 * 8))
-
 
 @dataclass(frozen=True)
 class ImageRequest:
     prompt: str
     negative_prompt: str = DEFAULT_NEGATIVE
-    width: int = 768
-    height: int = 768
-    steps: int = 28
-    guidance: float = 9.0
+    steps: int = DEFAULT_STEPS
+    guidance: float = DEFAULT_GUIDANCE
     seed: int = -1
     backend: str = "connectome"
 
@@ -53,10 +52,10 @@ class ImageRequest:
         prompt = str(raw.get("prompt") or "").strip()
         if not prompt:
             raise ValueError("prompt is required")
-        width = _multiple_of_8(int(raw.get("width", 768)))
-        height = _multiple_of_8(int(raw.get("height", 768)))
-        steps = max(1, min(80, int(raw.get("steps", 28))))
-        guidance = max(0.0, min(20.0, float(raw.get("guidance", 9.0))))
+        # Legacy width/height inputs are intentionally ignored: the image
+        # plane is a fixed 1024x1024 organ-level constant.
+        steps = max(1, min(80, int(raw.get("steps", DEFAULT_STEPS))))
+        guidance = max(0.0, min(20.0, float(raw.get("guidance", DEFAULT_GUIDANCE))))
         seed = int(raw.get("seed", -1))
         if seed < -1:
             seed = -1
@@ -72,8 +71,6 @@ class ImageRequest:
             negative_prompt=str(
                 raw.get("negative_prompt") or DEFAULT_NEGATIVE
             ),
-            width=width,
-            height=height,
             steps=steps,
             guidance=guidance,
             seed=seed,
@@ -180,8 +177,8 @@ class A1111Backend:
         payload = {
             "prompt": req.prompt,
             "negative_prompt": req.negative_prompt,
-            "width": req.width,
-            "height": req.height,
+            "width": IMAGE_WIDTH,
+            "height": IMAGE_HEIGHT,
             "steps": req.steps,
             "cfg_scale": req.guidance,
             "seed": seed,
@@ -406,8 +403,8 @@ class DiffusersBackend:
                 out = pipe(
                     prompt=req.prompt,
                     negative_prompt=req.negative_prompt,
-                    width=req.width,
-                    height=req.height,
+                    width=IMAGE_WIDTH,
+                    height=IMAGE_HEIGHT,
                     num_inference_steps=req.steps,
                     guidance_scale=req.guidance,
                     generator=generator,
@@ -492,6 +489,8 @@ class FMGImageGenerator:
             "controller": self.connectome.status(),
             "default_route": "fly-connectome",
             "default_model": DEFAULT_MODEL,
+            "resolution": {"width": IMAGE_WIDTH, "height": IMAGE_HEIGHT, "policy": "fixed"},
+            "quality_defaults": {"steps": DEFAULT_STEPS, "guidance": DEFAULT_GUIDANCE},
             "output_dir": str(self.output_dir),
             "backends": {
                 "a1111": self.a1111.probe(),
