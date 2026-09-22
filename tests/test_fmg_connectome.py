@@ -16,8 +16,6 @@ class FlyConnectomeTests(unittest.TestCase):
             r = self.make_router(td)
             request = {
                 "prompt": "夕暮れの湖畔を走る犬",
-                "width": 768,
-                "height": 768,
                 "steps": 28,
                 "guidance": 9.0,
             }
@@ -31,8 +29,6 @@ class FlyConnectomeTests(unittest.TestCase):
             r = self.make_router(td)
             req = {
                 "prompt": "cat photo",
-                "width": 512,
-                "height": 512,
                 "steps": 20,
                 "guidance": 7.0,
             }
@@ -46,8 +42,6 @@ class FlyConnectomeTests(unittest.TestCase):
             r = self.make_router(td)
             req = {
                 "prompt": "test image",
-                "width": 512,
-                "height": 512,
                 "steps": 20,
                 "guidance": 7.0,
             }
@@ -65,8 +59,6 @@ class FlyConnectomeTests(unittest.TestCase):
             r = FlyConnectomeRouter(state, seed=123)
             req = {
                 "prompt": "bird",
-                "width": 512,
-                "height": 512,
                 "steps": 20,
                 "guidance": 7.0,
             }
