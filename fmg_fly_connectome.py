@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
-CONNECTOME_VERSION = "FMG-FLY-CONNECTOME-2.1"
+CONNECTOME_VERSION = "FMG-FLY-CONNECTOME-2.2"
 
 
 @dataclass(frozen=True)
@@ -345,7 +345,7 @@ class FlyConnectomeRouter:
                 "sparse_expansion": f"{self.kc_count} KC-like units",
                 "fan_in": self.kc_fan_in,
                 "target_sparsity": self.active_fraction,
-                "motor_outputs": [f"MBON::{x}" for x in self.actions],
+                "motor_outputs": [f"MBON::{x}" for x in self.actions] + ["MBON::evaluate", "MBON::repair", "MBON::accept"],
                 "plasticity": (
                     "DAN-like reward modulation on KC->MBON weights"
                 ),
