@@ -1,0 +1,8 @@
+# FMG Image Generator V2
+# Install a Torch build appropriate for your GPU/OS first when needed.
+diffusers>=0.35
+transformers>=4.48
+accelerate>=1.2
+safetensors>=0.5
+Pillow>=10
+huggingface_hub>=0.30
