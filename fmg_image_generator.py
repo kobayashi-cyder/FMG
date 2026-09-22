@@ -17,9 +17,9 @@ from typing import Any
 from fmg_fly_connectome import FlyConnectomeRouter, RouteDecision
 
 
-VERSION = "FMG-IMG-CONNECTOME-2.0"
+VERSION = "FMG-IMG-CONNECTOME-2.1"
 DEFAULT_MODEL = "segmind/SSD-1B"
-DEFAULT_A1111 = "http://127.0.0.1:7860"
+DEFAULT_A1111 = "http://127.0.0.1:7860"\nIMAGE_WIDTH = 1024\nIMAGE_HEIGHT = 1024\nDEFAULT_STEPS = 50\nDEFAULT_GUIDANCE = 9.0
 DEFAULT_NEGATIVE = (
     "low quality, blurry, distorted, deformed anatomy, extra fingers, "
     "extra limbs, duplicate subject, watermark, signature, logo, text overlay"
@@ -723,7 +723,7 @@ img{max-width:100%;border-radius:10px;margin-top:12px}
 </head>
 <body>
 <h1>FMG Image Generator — Fly Connectome V2</h1>
-<p>PN → sparse KC → MBON → lazy image organ → DAN reward</p>
+<p>1024×1024 fixed · PN → sparse KC → MBON → lazy image organ → DAN reward</p>
 <textarea id="prompt" placeholder="画像生成プロンプト"></textarea>
 <p><label>Backend
 <select id="backend">
@@ -738,7 +738,7 @@ img{max-width:100%;border-radius:10px;margin-top:12px}
 async function generateImage(){
   const body={
     prompt:document.getElementById("prompt").value,
-    width:768,height:768,steps:28,guidance:9,seed:-1,
+    steps:50,guidance:9,seed:-1,
     backend:document.getElementById("backend").value
   };
   const r=await fetch("/api/v1/image/generate",{
