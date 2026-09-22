@@ -1,0 +1,6 @@
+# Optional FCA-Vision-Lite specialists.
+# FMG core runs without these; organs are loaded only when relevant.
+opencv-python-headless>=4.10
+# Optional:
+# mediapipe>=0.10
+# pytesseract>=0.3.13  # also requires system Tesseract
