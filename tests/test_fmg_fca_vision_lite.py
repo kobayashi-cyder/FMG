@@ -70,7 +70,7 @@ class FCAVisionLiteTests(unittest.TestCase):
             )
             fca.learn(pattern, decision.action, 0.5)
             self.assertTrue(state.is_file())
-            self.assertEqual(FCAVisionLite(state).policy.events, 1)
+            self.assertEqual(FCAVisionLite(state).policy.events, 2_000_001)
 
     def test_bootstrap_policy_loads_two_million_events(self):
         with tempfile.TemporaryDirectory() as td:
