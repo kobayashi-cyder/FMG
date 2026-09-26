@@ -1,0 +1,118 @@
+name: FMG 2M objective loop
+
+on:
+  push:
+    branches:
+      - side/fmg-2m-objective-loop-20260927
+    paths:
+      - run_fmg_objective_shard.py
+      - fmg_image_generator*.py
+      - fmg_strict_objective.py
+      - requirements-image.txt
+      - data/fmg_prompt_suite_v25.jsonl
+      - .github/workflows/fmg-2m-objective-loop.yml
+  workflow_dispatch:
+    inputs:
+      per_shard_limit:
+        description: Trials per shard for this run
+        required: true
+        default: "125000"
+      steps_cap:
+        description: Maximum diffusion steps
+        required: true
+        default: "50"
+      max_wall_seconds:
+        description: Wall-clock budget per shard
+        required: true
+        default: "20700"
+
+concurrency:
+  group: fmg-2m-objective-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  pilot:
+    if: github.event_name == 'push'
+    strategy:
+      fail-fast: false
+      max-parallel: 16
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Cache Hugging Face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: fmg-ssd1b-${{ runner.os }}-py311
+      - name: Install CPU image stack
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r requirements-image.txt
+      - name: Run one measured objective trial
+        env:
+          HF_HUB_DISABLE_TELEMETRY: "1"
+        run: |
+          python run_fmg_objective_shard.py \
+            --shard ${{ matrix.shard }} \
+            --shards 16 \
+            --limit 1 \
+            --steps-cap 8 \
+            --max-wall-seconds 2400 \
+            --backend diffusers
+      - name: Upload pilot feedback
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fmg-pilot-shard-${{ matrix.shard }}
+          path: runtime/objective_2m/shard-*/
+          retention-days: 7
+
+  full-shards:
+    if: github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      max-parallel: 16
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Cache Hugging Face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: fmg-ssd1b-${{ runner.os }}-py311
+      - name: Install CPU image stack
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r requirements-image.txt
+      - name: Run checkpointed objective shard
+        env:
+          HF_HUB_DISABLE_TELEMETRY: "1"
+        run: |
+          python run_fmg_objective_shard.py \
+            --shard ${{ matrix.shard }} \
+            --shards 16 \
+            --limit ${{ inputs.per_shard_limit }} \
+            --steps-cap ${{ inputs.steps_cap }} \
+            --max-wall-seconds ${{ inputs.max_wall_seconds }} \
+            --backend diffusers
+      - name: Upload feedback and checkpoint
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fmg-objective-shard-${{ matrix.shard }}
+          path: runtime/objective_2m/shard-*/
+          retention-days: 14
