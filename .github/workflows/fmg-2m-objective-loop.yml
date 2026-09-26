@@ -6,6 +6,7 @@ on:
       - side/fmg-2m-objective-loop-20260927
     paths:
       - run_fmg_objective_shard.py
+      - cleanup_verified_round.py
       - fmg_image_generator*.py
       - fmg_strict_objective.py
       - requirements-image.txt
@@ -26,13 +27,17 @@ on:
         required: true
         default: "20700"
 
+permissions:
+  contents: read
+  actions: write
+
 concurrency:
   group: fmg-2m-objective-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   pilot:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[no-pilot]')
     strategy:
       fail-fast: false
       max-parallel: 16
@@ -116,3 +121,52 @@ jobs:
           name: fmg-objective-shard-${{ matrix.shard }}
           path: runtime/objective_2m/shard-*/
           retention-days: 14
+
+  cleanup-verified-artifacts:
+    if: always() && github.event_name == 'workflow_dispatch'
+    needs: [full-shards]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download current-round artifacts for verification gate
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: fmg-objective-shard-*
+          path: runtime/cleanup_gate
+          merge-multiple: true
+      - name: Check verified-improvement marker
+        id: gate
+        shell: bash
+        run: |
+          MARKER="$(find runtime/cleanup_gate -name verified_improvement.json -print -quit 2>/dev/null || true)"
+          if [ -z "$MARKER" ]; then
+            echo "verified=false" >> "$GITHUB_OUTPUT"
+            echo "No verified improvement marker; preserving artifacts."
+            exit 0
+          fi
+          VERIFIED="$(python - "$MARKER" <<'PY'
+          import json, sys
+          value = json.load(open(sys.argv[1], encoding='utf-8'))
+          print('true' if value.get('verified') is True else 'false')
+          PY
+          )"
+          echo "verified=$VERIFIED" >> "$GITHUB_OUTPUT"
+          if [ "$VERIFIED" != "true" ]; then
+            echo "Improvement not verified; preserving artifacts."
+          fi
+      - name: Delete raw objective artifacts only after verified improvement
+        if: steps.gate.outputs.verified == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.name | startswith("fmg-objective-shard-")) | .id' \
+            > /tmp/fmg-artifact-ids.txt
+          while read -r ARTIFACT_ID; do
+            [ -n "$ARTIFACT_ID" ] || continue
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID"
+          done < /tmp/fmg-artifact-ids.txt
+          echo "Verified improvement: raw objective artifacts deleted."
