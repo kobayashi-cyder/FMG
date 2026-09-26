@@ -146,7 +146,7 @@ class TemporalTrace:
 
 
 class MBONPolicy:
-    def __init__(self, state_path: str | Path, learning_rate=0.06):
+    def __init__(self, state_path: str | Path, learning_rate=0.06, bootstrap_path: str | Path | None = None):
         self.state_path = Path(state_path)
         self.learning_rate = learning_rate
         self.weights: dict[str, dict[int, float]] = {a: {} for a in ACTIONS}
