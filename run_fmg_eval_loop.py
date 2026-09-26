@@ -74,8 +74,9 @@ class JsonlLog:
 
 
 class FailureMemory:
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, mirror_path: Path | None = None):
         self.path = path
+        self.mirror_path = mirror_path
         self.data: dict[str, Any] = {"schema": "fmg.failure-memory.v1", "categories": {}, "cases": {}}
         if path.is_file():
             try:
@@ -106,7 +107,11 @@ class FailureMemory:
             item["best_score"] = score
             item["best_prompt"] = case.get("_effective_prompt", case.get("prompt", ""))
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(self.data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        text = json.dumps(self.data, ensure_ascii=False, indent=2) + "\n"
+        self.path.write_text(text, encoding="utf-8")
+        if self.mirror_path is not None:
+            self.mirror_path.parent.mkdir(parents=True, exist_ok=True)
+            self.mirror_path.write_text(text, encoding="utf-8")
 
 
 class GitPublisher:
@@ -140,15 +145,9 @@ class GitPublisher:
             return False
         if not (self.repo_root / ".git").exists():
             return False
-        rel = os.path.relpath(self.tracked_root, self.repo_root)
+        tracked_bundle = self.tracked_root.parent
+        rel = os.path.relpath(tracked_bundle, self.repo_root)
         subprocess.run(["git", "add", "--", rel], cwd=self.repo_root, check=True)
-        usage = self.repo_root / "generated" / "fmg_eval" / "LOG_USAGE.json"
-        if usage.exists():
-            subprocess.run(
-                ["git", "add", "--", os.path.relpath(usage, self.repo_root)],
-                cwd=self.repo_root,
-                check=True,
-            )
         staged = subprocess.run(
             ["git", "diff", "--cached", "--quiet"],
             cwd=self.repo_root,
@@ -315,7 +314,10 @@ def main() -> None:
     runtime = repo_root / "runtime" / "fmg_eval"
     tracked = repo_root / "generated" / "fmg_eval"
     logger = JsonlLog(runtime / "logs", tracked / "LOG_USAGE.json")
-    memory = FailureMemory(runtime / "failure_memory.json")
+    memory = FailureMemory(
+        runtime / "failure_memory.json",
+        tracked / "METRICS.json",
+    )
     publisher = (
         GitPublisher(repo_root, tracked / "images", args.git_push_every)
         if args.publish_all
