@@ -158,3 +158,53 @@ These are **2,000,000 sequential FCA routing/reward updates**, not two million d
 - seed: 2401
 
 The bootstrap is loaded only when no local runtime state exists. Real generated images continue to update the runtime state after bootstrap.
+
+## V2.5 — strict prompt/objective evaluation loop
+
+FMG now includes a fail-closed evaluation loop for improving prompt adherence rather than accepting images on technical quality alone.
+
+The bundled suite is `data/fmg_prompt_suite_v25.jsonl`:
+
+- 316 total prompt cases
+- 253 training cases
+- 63 holdout cases
+- categories include attribute binding, counting, spatial relations, exact text, portraits, hands, materials, lighting, camera geometry, motion, food, architecture, and macro detail
+
+Each case carries contrastive negative descriptions. The strict evaluator compares the generated image against the requested prompt and competing wrong descriptions. PASS requires all available gates to clear:
+
+```text
+1024x1024 + technical quality
+  -> prompt/image contrastive alignment
+  -> positive-vs-wrong-description margin
+  -> required specialist evidence (face / hand / exact text)
+  -> PASS / FAIL / UNKNOWN
+```
+
+Missing semantic evidence is `UNKNOWN`, never an automatic PASS.
+
+Training cases may be regenerated with a refined prompt derived from the previous failure reasons. Holdout cases are evaluated once and are not prompt-refined, so they remain useful as unseen checks.
+
+Continuous Windows run:
+
+```bat
+RUN_FMG_EVAL_LOOP.cmd
+```
+
+Continuous Linux run:
+
+```bash
+./RUN_FMG_EVAL_LOOP.sh
+```
+
+The launchers run the training split continuously, publish generated image+JSON pairs under `generated/fmg_eval/images/`, and push batches of 32 artifacts to the currently checked-out Git branch.
+
+Local verbose evaluation logs stay under `runtime/fmg_eval/logs/`. A small tracked file, `generated/fmg_eval/LOG_USAGE.json`, mirrors cumulative evaluation-log bytes so external monitoring can detect successive 50 GB thresholds without committing the full logs.
+
+For a one-shot untouched evaluation:
+
+```bash
+python run_fmg_eval_loop.py --split holdout --limit 63
+```
+
+The holdout result should be reported separately from training results. Do not mix regenerated training attempts into the holdout score.
+
