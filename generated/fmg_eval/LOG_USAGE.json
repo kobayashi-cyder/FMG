@@ -1,0 +1,10 @@
+{
+  "schema": "fmg.eval-log-usage.v1",
+  "updated_at": "2026-09-27T03:13:00+09:00",
+  "total_log_bytes": 0,
+  "total_log_gb_decimal": 0.0,
+  "events": 0,
+  "last_completed_50gb_band": 0,
+  "next_threshold_gb": 50,
+  "note": "Counts evaluation JSONL/log payload bytes, not generated image bytes. Runtime loop updates this mirror."
+}
