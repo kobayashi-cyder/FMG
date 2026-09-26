@@ -209,13 +209,34 @@ class MBONPolicy:
             return
         try:
             raw = json.loads(source.read_text(encoding="utf-8"))
-            if raw.get("schema") not in {
+            schema = raw.get("schema")
+            if schema not in {
                 "fmg.fca-vision-lite.v2.3",
                 "fmg.fca-vision-lite.v2.4",
+                "fmg.fca-vision-lite.v2.4-q8",
             }:
                 return
             self.baseline = float(raw.get("baseline", 0.0))
             self.events = int(raw.get("events", 0))
+
+            if schema == "fmg.fca-vision-lite.v2.4-q8":
+                scale = float(raw.get("weight_scale", 1.0))
+                encoded = raw.get("weights_q8") or {}
+                for action in ACTIONS:
+                    payload = str(encoded.get(action) or "")
+                    if not payload:
+                        self.weights[action] = {}
+                        continue
+                    values = base64.b64decode(payload)
+                    row: dict[int, float] = {}
+                    for index, byte in enumerate(values):
+                        signed = byte if byte < 128 else byte - 256
+                        value = max(-1.5, min(1.5, signed * scale))
+                        if abs(value) >= 1e-12:
+                            row[index] = value
+                    self.weights[action] = row
+                return
+
             loaded = raw.get("weights") or {}
             for action in ACTIONS:
                 self.weights[action] = {
