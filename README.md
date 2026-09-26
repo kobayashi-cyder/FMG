@@ -208,3 +208,25 @@ python run_fmg_eval_loop.py --split holdout --limit 63
 
 The holdout result should be reported separately from training results. Do not mix regenerated training attempts into the holdout score.
 
+### Long-running watchdog and tracked metrics
+
+For unattended operation that restarts the evaluator after a process/backend/push failure:
+
+Windows:
+
+```bat
+WATCH_FMG_EVAL_LOOP.cmd
+```
+
+Linux:
+
+```bash
+./WATCH_FMG_EVAL_LOOP.sh
+```
+
+The evaluator also mirrors compact aggregate statistics to
+`generated/fmg_eval/METRICS.json`. This tracks per-category PASS/FAIL/UNKNOWN
+counts, repeated failure reasons, attempts, and best observed score per prompt
+case. Full verbose logs remain local under `runtime/`; only compact usage and
+metrics metadata are tracked with generated image/JSON pairs.
+
