@@ -8,7 +8,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 from fmg_strict_objective import StrictObjectiveEvaluator
-from run_fmg_eval_loop import JsonlLog, load_suite, refine_prompt
+from run_fmg_eval_loop import FailureMemory, JsonlLog, load_suite, refine_prompt
 
 
 class FakeAlignment:
@@ -113,6 +113,19 @@ class StrictObjectiveTests(unittest.TestCase):
             self.assertEqual(state["events"], 2)
             self.assertGreater(state["total_log_bytes"], 0)
             self.assertEqual(state["next_threshold_gb"], 50)
+
+    def test_failure_memory_mirrors_metrics(self):
+        with tempfile.TemporaryDirectory() as td:
+            state = Path(td) / "runtime" / "failure.json"
+            mirror = Path(td) / "generated" / "METRICS.json"
+            memory = FailureMemory(state, mirror)
+            memory.observe(
+                {"id": "case-1", "category": "counting", "_effective_prompt": "exactly two cats"},
+                {"verdict": "fail", "score": 0.25, "reasons": ["prompt alignment below strict threshold"]},
+            )
+            data = json.loads(mirror.read_text(encoding="utf-8"))
+            self.assertEqual(data["categories"]["counting"]["fail"], 1)
+            self.assertEqual(data["cases"]["case-1"]["attempts"], 1)
 
     def test_suite_has_train_and_holdout(self):
         suite_path = Path(__file__).resolve().parents[1] / "data" / "fmg_prompt_suite_v25.jsonl"
